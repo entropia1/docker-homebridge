@@ -1,4 +1,4 @@
-FROM ubuntu:24.04
+FROM debian:bookworm
 
 LABEL org.opencontainers.image.title="Homebridge in Docker"
 LABEL org.opencontainers.image.description="Official Homebridge Docker Image"
@@ -51,7 +51,6 @@ RUN case "$(uname -m)" in \
   *) echo "unsupported architecture"; exit 1 ;; \
   esac \
   && cd /tmp \
-  && set -x \
   && curl -SLOf https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-noarch.tar.xz \
   && tar -C / -Jxpf /tmp/s6-overlay-noarch.tar.xz \
   && curl -SLOf  https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-${S6_ARCH}.tar.xz \
@@ -77,7 +76,10 @@ RUN case "$(uname -m)" in \
   && dpkg -i /homebridge_${HOMEBRIDGE_APT_PKG_VERSION}.deb \
   && rm -rf /homebridge_${HOMEBRIDGE_APT_PKG_VERSION}.deb \
   && chown -R root:root /opt/homebridge \
-  && rm -rf /var/lib/homebridge
+  && rm -rf /var/lib/homebridge \
+  && apt-get clean \
+  && rm -rf /tmp/* /var/lib/apt/lists/* /var/tmp/* \
+  && rm -rf /var/lib/{apt,dpkg,cache,log}/
 
 RUN HB_CONFIG_UI_X_VERSION=$(jq -r '.dependencies["homebridge-config-ui-x"]' /opt/homebridge/package.json) && \
   echo "Homebridge Docker Package Manifest\n\n" \
