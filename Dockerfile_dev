@@ -1,0 +1,44 @@
+FROM debian:trixie
+
+ARG HOMEBRIDGE_APT_PKG_VERSION
+ARG HOMEBRIDGE_APT_PKG_FILE=${HOMEBRIDGE_APT_PKG_VERSION}
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+ENV S6_OVERLAY_VERSION=3.2.0.2 \
+  S6_CMD_WAIT_FOR_SERVICES_MAXTIME=0 \
+  S6_KEEP_ENV=1 \
+  ENABLE_AVAHI=0 \
+  USER=root \
+  HOMEBRIDGE_APT_PACKAGE=1 \
+  UIX_CUSTOM_PLUGIN_PATH="/var/lib/homebridge/node_modules" \
+  PATH="/opt/homebridge/bin:/var/lib/homebridge/node_modules/.bin:$PATH" \
+  HOME="/home/homebridge" \
+  npm_config_prefix=/opt/homebridge
+
+RUN set -x \
+  && case "$(uname -m)" in \
+  x86_64) HOMEBRIDGE_CPU_ARCH='amd64';; \
+  armv7l) HOMEBRIDGE_CPU_ARCH='armhf';; \
+  aarch64) HOMEBRIDGE_CPU_ARCH='arm64';; \
+  *) echo "unsupported architecture"; exit 1 ;; \
+  esac \
+  && apt-get update \
+  && apt-get install -y curl xz-utils \
+  && cd /tmp \
+  && curl -sSLf -o /homebridge_${HOMEBRIDGE_APT_PKG_VERSION}.deb https://github.com/homebridge/homebridge-apt-pkg/releases/download/${HOMEBRIDGE_APT_PKG_VERSION}/homebridge_${HOMEBRIDGE_APT_PKG_FILE}_${HOMEBRIDGE_CPU_ARCH}.deb \
+  && apt-get autoremove --purge -y curl apt-utils apt-transport-https xz-utils \
+  && apt-get install -y jq psmisc make net-tools dbus-daemon libatomic1 python3 g++ \
+  && dpkg --force-all -i /homebridge_${HOMEBRIDGE_APT_PKG_VERSION}.deb \
+  && rm -rf /homebridge_${HOMEBRIDGE_APT_PKG_VERSION}.deb \
+  && chown -R root:root /opt/homebridge \
+  && rm -rf /var/lib/homebridge \
+  && apt-get clean \
+  && rm -rf /tmp/* /var/lib/apt/lists/* /var/tmp/* \
+  && rm -rf /var/lib/{apt,dpkg,cache,log}/
+
+COPY rootfs /
+VOLUME /homebridge
+WORKDIR /homebridge
+
+ENTRYPOINT [ "/bin/bash" ]
